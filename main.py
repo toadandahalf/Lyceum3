@@ -1,6 +1,7 @@
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 import requests
+import pprint
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "40d1649f-0493-4b70-98ba-98533de7710b"
@@ -13,7 +14,7 @@ async def start_dialog(update, context):
 
 async def start(update, context):
     user = update.effective_user
-    reply_keyboard = [['/help'], ['/close'], ['/start_dialog']]
+    reply_keyboard = [['/help - 123'], ['/close'], ['/start_dialog']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     await update.message.reply_html(
         rf"Привет, {user.mention_html()}!) Я бот, который поможет тебе сохранить место, которое тебе понравилось, и"
@@ -24,17 +25,45 @@ async def start(update, context):
     )
 
 
-async def get_adress(update, context):
+async def get_address(update, context):
     geocoder_request = f"http://geocode-maps.yandex.ru/1.x/?apikey={apikey}" \
                        f"&geocode={update.message.text}&kind=metro&format=json"
     response = requests.get(geocoder_request)
     if response:
         json_response = response.json()
 
-        toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-        adress = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
+        # toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+        real_toponym = json_response["response"]["GeoObjectCollection"]["featureMember"]
+        # address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
+
+        # pprint.pprint(check1)
+        # print('---')
+        # print(address)
+
+        ten = []
+
+        for address in real_toponym:
+            ten.append([address["GeoObject"]["metaDataProperty"]
+                        ["GeocoderMetaData"]["Address"]['formatted']])
+
+        context.user_data['ten_addresses'] = ten
+
+        return 2
 
 
+async def choosing_from_ten(update, context):
+    user = update.effective_user
+    reply_keyboard = []
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+
+    for address in context.user_data['ten_addresses']:
+        reply_keyboard.append(f'/create - {address}')
+
+    await update.message.reply_html(reply_markup=markup)
+
+
+async def create(update, context):
+    pass
 
 
 async def help_command(update, context):
@@ -65,7 +94,8 @@ def main():
         entry_points=[CommandHandler('start_dialog', start_dialog)],
 
         states={
-            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_adress)],
+            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address)],
+            2: [MessageHandler(filters.TEXT, choosing_from_ten)],
         },
         fallbacks=[CommandHandler('stop', stop)]
     )
