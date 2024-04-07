@@ -59,7 +59,7 @@ async def choosing_from_ten(update, context):
     for address in context.user_data['ten_addresses']:
         reply_keyboard.append(f'/create - {address}')
 
-    await update.message.reply_html(reply_markup=markup)
+    await update.message.reply_html(text='', reply_markup=markup)
 
 
 async def create(update, context):
@@ -104,6 +104,8 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("close", close_keyboard))
+    application.add_handler(CommandHandler("choosing_from_ten", choosing_from_ten))
+    application.add_handler(CommandHandler("create", create))
 
     application.run_polling()
 
