@@ -1,14 +1,19 @@
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 import requests
-import pprint
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "40d1649f-0493-4b70-98ba-98533de7710b"
+organizations = {}
 
 
-async def start_dialog(update, context):
+async def start_address(update, context):
     await update.message.reply_text('Введите адрес места.')
+    return 1
+
+
+async def start_name(update, context):
+    await update.message.reply_text('Введите название места')
     return 1
 
 
@@ -32,38 +37,46 @@ async def get_address(update, context):
     if response:
         json_response = response.json()
 
-        # toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-        real_toponym = json_response["response"]["GeoObjectCollection"]["featureMember"]
-        # address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
-
-        # pprint.pprint(check1)
-        # print('---')
-        # print(address)
-
-        ten = []
-
-        for address in real_toponym:
-            ten.append([address["GeoObject"]["metaDataProperty"]
-                        ["GeocoderMetaData"]["Address"]['formatted']])
-
-        context.user_data['ten_addresses'] = ten
-
-        return 2
+    toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+    address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
 
 
-async def choosing_from_ten(update, context):
-    user = update.effective_user
-    reply_keyboard = []
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+async def get_name(update, context):
+    search_api_server = "https://search-maps.yandex.ru/v1/"
 
-    for address in context.user_data['ten_addresses']:
-        reply_keyboard.append(f'/create - {address}')
+    search_params = {
+        "apikey": apikey,
+        "text": update.message.text,
+        "lang": "ru_RU",
+        "type": "biz"
+    }
 
-    await update.message.reply_html(text='', reply_markup=markup)
+    response = requests.get(search_api_server, params=search_params)
+    json_response = response.json()
+
+    for i in range(10):
+        organizations[str(i)] = json_response["features"][i]
+    select_kb = InlineKeyboardMarkup()
+
+    for i in range(10):
+        await update.message.reply_html(
+            f'Название: {organizations[str(i)]["properties"]["CompanyMetaData"]["name"]}'
+            f'Адрес: {organizations[str(i)]["properties"]["CompanyMetaData"]["address"]}'
+        )
+    await update.message.reply_html(
+        r'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте'
+    )
+    return 2
 
 
-async def create(update, context):
-    pass
+async def get_name_information(update, context):
+    select = update.message.text
+    organization = organizations[select]
+
+    org_name = organization["properties"]["CompanyMetaData"]["name"]
+    org_address = organization["properties"]["CompanyMetaData"]["address"]
+    org_coordinates = organization["geometry"]["coordinates"]
+    org_map = f'https://static-maps.yandex.ru/1.x/?ll={organization["geometry"]["coordinates"]}&spn=0.005,0.005&l=map'
 
 
 async def help_command(update, context):
@@ -90,17 +103,27 @@ async def stop(update, context):
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start_dialog', start_dialog)],
+    with_address = ConversationHandler(
+        entry_points=[CommandHandler('start_address', start_address)],
 
         states={
             1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address)],
-            2: [MessageHandler(filters.TEXT, choosing_from_ten)],
+            2: [MessageHandler(filters.TEXT, choosing_from_ten)],  # ЗАЛУПА ЗАЛУПА ЗАЛУПА
         },
         fallbacks=[CommandHandler('stop', stop)]
     )
 
-    application.add_handler(conv_handler)
+    with_name = ConversationHandler(
+        entry_points=[CommandHandler('start_name', start_name)],
+
+        states={
+            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
+            2: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_information)]
+        },
+        fallbacks=[CommandHandler('stop', stop)]
+    )
+
+    application.add_handler(with_address)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("close", close_keyboard))
