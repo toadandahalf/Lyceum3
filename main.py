@@ -82,19 +82,30 @@ async def get_name(update, context):
         r'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте',
         reply_markup=select_kb_reply
     )
+
+    context.user_data['list_of_some'] = organizations
     return 2
 
 
 async def get_name_information(update, context):
     select = update.message.text
-    organization = organizations[select]
+    organization = context.user_data['list_of_some'][select]
 
     org_name = organization["properties"]["CompanyMetaData"]["name"]
     org_address = organization["properties"]["CompanyMetaData"]["address"]
     org_coordinates = organization["geometry"]["coordinates"]
-    org_map = f'https://static-maps.yandex.ru/1.x/?ll={organization["geometry"]["coordinates"]}&spn=0.005,0.005&l=map'
+    org_map = f'https://static-maps.yandex.ru/1.x/?ll=' \
+              f'{"".join(organization["geometry"]["coordinates"])}&spn=0.005,0.005&l=map' # вот тут говно!!!!!!!!!!!!!!
 
-    print('1111111111')
+    answer = f'''
+    {org_name}
+    Адрес: {org_address}
+    Точные координаты: {str(org_coordinates).rstrip("]").lstrip("[")}'''
+
+    print(org_map)
+
+    await update.message.reply_photo(org_map)
+    await update.message.reply_html(answer)
 
 
 async def help_command(update, context):
