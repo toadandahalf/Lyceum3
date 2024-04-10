@@ -1,9 +1,10 @@
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 import requests
+import pprint
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
-apikey = "40d1649f-0493-4b70-98ba-98533de7710b"
+apikey = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
 organizations = {}
 
 
@@ -37,8 +38,10 @@ async def get_address(update, context):
     if response:
         json_response = response.json()
 
-    toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-    address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
+        toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+        address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
+    else:
+        print('Aboba')
 
 
 async def get_name(update, context):
@@ -54,17 +57,30 @@ async def get_name(update, context):
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
 
-    for i in range(10):
-        organizations[str(i)] = json_response["features"][i]
-    # select_kb = InlineKeyboardMarkup()
+    # pprint.pprint(json_response)
 
-    for i in range(10):
-        await update.message.reply_html(
-            f'Название: {organizations[str(i)]["properties"]["CompanyMetaData"]["name"]}'
-            f'Адрес: {organizations[str(i)]["properties"]["CompanyMetaData"]["address"]}'
-        )
+    try:
+        for i in range(10):
+            organizations[str(i)] = json_response["features"][i]
+
+        # select_kb_inline = InlineKeyboardMarkup()
+        # select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(organizations))])
+
+        for i in range(len(organizations)):
+            await update.message.reply_html(
+                f'Название: {organizations[str(i)]["properties"]["CompanyMetaData"]["name"]}'
+                f'Адрес: {organizations[str(i)]["properties"]["CompanyMetaData"]["address"]}'
+            )
+    except IndexError:
+        await update.message.reply_html('Ошибка!')
+
+    select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(organizations))])
+
+    # pprint.pprint(organizations)
+
     await update.message.reply_html(
-        r'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте'
+        r'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте',
+        reply_markup=select_kb_reply
     )
     return 2
 
@@ -77,6 +93,8 @@ async def get_name_information(update, context):
     org_address = organization["properties"]["CompanyMetaData"]["address"]
     org_coordinates = organization["geometry"]["coordinates"]
     org_map = f'https://static-maps.yandex.ru/1.x/?ll={organization["geometry"]["coordinates"]}&spn=0.005,0.005&l=map'
+
+    print('1111111111')
 
 
 async def help_command(update, context):
