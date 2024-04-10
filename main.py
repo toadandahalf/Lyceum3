@@ -19,7 +19,7 @@ async def start_name(update, context):
 
 async def start(update, context):
     user = update.effective_user
-    reply_keyboard = [['/help - 123'], ['/close'], ['/start_dialog']]
+    reply_keyboard = [['/start_name - поиск по имени'], ['/start_address - поиск по адресу']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     await update.message.reply_html(
         rf"Привет, {user.mention_html()}!) Я бот, который поможет тебе сохранить место, которое тебе понравилось, и"
@@ -56,7 +56,7 @@ async def get_name(update, context):
 
     for i in range(10):
         organizations[str(i)] = json_response["features"][i]
-    select_kb = InlineKeyboardMarkup()
+    # select_kb = InlineKeyboardMarkup()
 
     for i in range(10):
         await update.message.reply_html(
@@ -108,7 +108,6 @@ def main():
 
         states={
             1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address)],
-            2: [MessageHandler(filters.TEXT, choosing_from_ten)],  # ЗАЛУПА ЗАЛУПА ЗАЛУПА
         },
         fallbacks=[CommandHandler('stop', stop)]
     )
@@ -124,11 +123,14 @@ def main():
     )
 
     application.add_handler(with_address)
+    application.add_handler(with_name)
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("close", close_keyboard))
-    application.add_handler(CommandHandler("choosing_from_ten", choosing_from_ten))
-    application.add_handler(CommandHandler("create", create))
+    application.add_handler(CommandHandler("start_address", start_address))
+    application.add_handler(CommandHandler("start_name", start_name))
+    application.add_handler(CommandHandler("stop", stop))
 
     application.run_polling()
 
