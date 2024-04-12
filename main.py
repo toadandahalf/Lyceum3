@@ -5,7 +5,6 @@ import pprint
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
-organizations = {}
 
 
 async def start_address(update, context):
@@ -20,13 +19,25 @@ async def start_name(update, context):
 
 async def start(update, context):
     user = update.effective_user
+    context.user_data['list_of_some'] = {}
+
     reply_keyboard = [['/start_name - поиск по имени'], ['/start_address - поиск по адресу']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     await update.message.reply_html(
-        rf"Привет, {user.mention_html()}!) Я бот, который поможет тебе сохранить место, которое тебе понравилось, и"
-        rf" узнать о нём нужную тебе информацию. Сперва сообщением отправь мне название места, и я дам тебе список мест"
-        rf", которые мне удалось для тебя найти. Затем выбери из списка мест то, которое тебе нужно, и я пришлю тебе "
-        rf"информацию о нём. Все очень легко, правда?) А как удобно! Приятного пользования!)",
+        f"Привет, {user.mention_html()}! Я бот,\n"
+        f"который поможет тебе сохранить место,\n"
+        f"которое тебе понравилось, и сохранить\n"
+        f"о нём нужную тебе информацию.\n"
+        f"\n"
+        f"Сперва сообщением отправь мне название\n"
+        f"места, и я дам тебе список мест,\n"
+        f"которые мне удалось для тебя найти.\n"
+        f"Затем выбери из списка мест то, которое\n"
+        f"тебе нужно, и я пришлю тебе\n"
+        f"информацию о нём.\n"
+        f"\n"
+        f"Все очень легко, правда? А как удобно!\n"
+        f"Приятного пользования!\n",
         reply_markup=markup
     )
 
@@ -57,39 +68,47 @@ async def get_name(update, context):
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
 
-    try:
-        for i in range(10):
-            organizations[str(i)] = json_response["features"][i]
+    choosing_from_ten = ''
 
-        for i in range(len(organizations)):
-            await update.message.reply_html(
-                f'Название: {organizations[str(i)]["properties"]["CompanyMetaData"]["name"]}'
-                f'Адрес: {organizations[str(i)]["properties"]["CompanyMetaData"]["address"]}'
-            )
+    try:
+        for i in range(len(json_response['features'])):
+            context.user_data['list_of_some'][str(i)] = json_response["features"][i]
+
+            choosing_from_ten += f'{i + 1}:\n' \
+                                 f'    Название: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["name"]}\n' \
+                                 f'    Адрес: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["address"]}\n' \
+                                 f'    \n'
+
+        await update.message.reply_html(choosing_from_ten)
+
     except IndexError:
         await update.message.reply_html('Ошибка!')
+        return 1
 
-    select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(organizations))], one_time_keyboard=True)
+    select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(context.user_data["list_of_some"]))],
+                                          one_time_keyboard=True)
 
     await update.message.reply_html(
-        r'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте',
+        'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте',
         reply_markup=select_kb_reply
     )
 
-    context.user_data['list_of_some'] = organizations
     return 2
 
 
 async def get_name_information(update, context):
-    select = update.message.text
+    select = str(int(update.message.text) - 1)
     organization = context.user_data['list_of_some'][select]
+
+    context.user_data['list_of_some'] = {}
 
     org_name = organization["properties"]["CompanyMetaData"]["name"]
     org_address = organization["properties"]["CompanyMetaData"]["address"]
     org_coordinates = organization["geometry"]["coordinates"]
     org_map = f'https://static-maps.yandex.ru/1.x/?ll=' \
               f'{str(organization["geometry"]["coordinates"][0])},{str(organization["geometry"]["coordinates"][1])}' \
-              f'&spn=0.005,0.005&l=map'
+              f'&spn=0.005,0.005&l=map&pt={str(organization["geometry"]["coordinates"][0])},' \
+              f'{str(organization["geometry"]["coordinates"][1])},pm2rdl'
 
     answer = f'''
     {org_name}
@@ -98,13 +117,25 @@ async def get_name_information(update, context):
 
     await update.message.reply_photo(org_map, caption=answer)
 
+    return ConversationHandler.END
+
 
 async def help_command(update, context):
     await update.message.reply_text(
-        rf"Я бот, который поможет тебе сохранить место, которое тебе понравилось, и"
-        rf" узнать о нём нужную тебе информацию. Сперва сообщением отправь мне название места, и я дам тебе список мест"
-        rf", которые мне удалось для тебя найти. Затем выбери из списка мест то, которое тебе нужно, и я пришлю тебе "
-        rf"информацию о нём. Все очень легко, правда?) А как удобно! Приятного пользования!)"
+        f" Коротко о себе: Я бот,\n"
+        f" который поможет тебе сохранить место,\n"
+        f" которое тебе понравилось, и сохранить\n"
+        f" о нём нужную тебе информацию.\n"
+        f" \n"
+        f" Сперва сообщением отправь мне название\n"
+        f" места, и я дам тебе список мест,\n"
+        f" которые мне удалось для тебя найти.\n"
+        f" Затем выбери из списка мест то, которое\n"
+        f" тебе нужно, и я пришлю тебе\n"
+        f" информацию о нём.\n"
+        f" \n"
+        f" Все очень легко, правда? А как удобно!\n"
+        f" Приятного пользования!\n"
     )
 
 
