@@ -21,7 +21,7 @@ async def start_name(update, context):
 async def start(update, context):
     user = update.effective_user
     reply_keyboard = [['/start_name - поиск по имени'], ['/start_address - поиск по адресу']]
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     await update.message.reply_html(
         rf"Привет, {user.mention_html()}!) Я бот, который поможет тебе сохранить место, которое тебе понравилось, и"
         rf" узнать о нём нужную тебе информацию. Сперва сообщением отправь мне название места, и я дам тебе список мест"
@@ -57,14 +57,9 @@ async def get_name(update, context):
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
 
-    # pprint.pprint(json_response)
-
     try:
         for i in range(10):
             organizations[str(i)] = json_response["features"][i]
-
-        # select_kb_inline = InlineKeyboardMarkup()
-        # select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(organizations))])
 
         for i in range(len(organizations)):
             await update.message.reply_html(
@@ -74,9 +69,7 @@ async def get_name(update, context):
     except IndexError:
         await update.message.reply_html('Ошибка!')
 
-    select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(organizations))])
-
-    # pprint.pprint(organizations)
+    select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(organizations))], one_time_keyboard=True)
 
     await update.message.reply_html(
         r'Выберите подходящее место и отправьте число от 1 до 10, чтобы получить точную ифнормацию об этом месте',
@@ -95,17 +88,15 @@ async def get_name_information(update, context):
     org_address = organization["properties"]["CompanyMetaData"]["address"]
     org_coordinates = organization["geometry"]["coordinates"]
     org_map = f'https://static-maps.yandex.ru/1.x/?ll=' \
-              f'{"".join(organization["geometry"]["coordinates"])}&spn=0.005,0.005&l=map' # вот тут говно!!!!!!!!!!!!!!
+              f'{str(organization["geometry"]["coordinates"][0])},{str(organization["geometry"]["coordinates"][1])}' \
+              f'&spn=0.005,0.005&l=map'
 
     answer = f'''
     {org_name}
     Адрес: {org_address}
     Точные координаты: {str(org_coordinates).rstrip("]").lstrip("[")}'''
 
-    print(org_map)
-
-    await update.message.reply_photo(org_map)
-    await update.message.reply_html(answer)
+    await update.message.reply_photo(org_map, caption=answer)
 
 
 async def help_command(update, context):
@@ -166,3 +157,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# https://docs.python-telegram-bot.org/en/stable/telegram.bot.html#telegram.Bot.send_photo
+# https://qna.habr.com/q/331636
