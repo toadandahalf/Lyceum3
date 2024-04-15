@@ -8,11 +8,6 @@ BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
 
 
-async def start_address(update, context):
-    await update.message.reply_text('Введите адрес места.')
-    return 1
-
-
 async def start_name(update, context):
     await update.message.reply_text('Введите название места')
     return 1
@@ -22,7 +17,7 @@ async def start(update, context):
     user = update.effective_user
     context.user_data['list_of_some'] = {}
 
-    reply_keyboard = [['/start_name - поиск по имени'], ['/start_address - поиск по адресу']]
+    reply_keyboard = [['/start_name - поиск по имени']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     await update.message.reply_html(
         f"Привет, {user.mention_html()}! Я бот,\n"
@@ -43,19 +38,6 @@ async def start(update, context):
     )
 
 
-async def get_address(update, context):
-    geocoder_request = f"http://geocode-maps.yandex.ru/1.x/?apikey={apikey}" \
-                       f"&geocode={update.message.text}&kind=metro&format=json"
-    response = requests.get(geocoder_request)
-    if response:
-        json_response = response.json()
-
-        toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-        address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]['formatted']
-    else:
-        print('Aboba')
-
-
 async def get_name(update, context):
     search_api_server = "https://search-maps.yandex.ru/v1/"
 
@@ -63,7 +45,6 @@ async def get_name(update, context):
         "apikey": apikey,
         "text": update.message.text,
         "lang": "ru_RU",
-        "type": "biz",
         "bbox": "54.331086, 34.372653~57.893077, 41.036901",
         "results": "50"
     }
@@ -75,20 +56,15 @@ async def get_name(update, context):
 
     choosing_from_ten = ''
 
-    try:
-        for i in range(len(json_response['features'])):
-            context.user_data['list_of_some'][str(i)] = json_response["features"][i]
+    for i in range(len(json_response['features'])):
+        context.user_data['list_of_some'][str(i)] = json_response["features"][i]
 
-            choosing_from_ten += f'{i + 1}:\n' \
-                                 f'    Название: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["name"]}\n' \
-                                 f'    Адрес: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["address"]}\n' \
-                                 f'    \n'
+        choosing_from_ten += f'{i + 1}:\n' \
+                             f'    Название: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["name"]}\n' \
+                             f'    Адрес: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["address"]}\n' \
+                             f'    \n'
 
-        await update.message.reply_html(choosing_from_ten)
-
-    except IndexError:
-        await update.message.reply_html('Ошибка!')
-        return 1
+    await update.message.reply_html(choosing_from_ten)
 
     select_kb_reply = ReplyKeyboardMarkup([[str(i + 1)] for i in range(len(context.user_data["list_of_some"]))],
                                           one_time_keyboard=True)
@@ -159,15 +135,6 @@ async def stop(update, context):
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
-    with_address = ConversationHandler(
-        entry_points=[CommandHandler('start_address', start_address)],
-
-        states={
-            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address)],
-        },
-        fallbacks=[CommandHandler('stop', stop)]
-    )
-
     with_name = ConversationHandler(
         entry_points=[CommandHandler('start_name', start_name)],
 
@@ -178,13 +145,11 @@ def main():
         fallbacks=[CommandHandler('stop', stop)]
     )
 
-    application.add_handler(with_address)
     application.add_handler(with_name)
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("close", close_keyboard))
-    application.add_handler(CommandHandler("start_address", start_address))
     application.add_handler(CommandHandler("start_name", start_name))
     application.add_handler(CommandHandler("stop", stop))
 
@@ -196,3 +161,4 @@ if __name__ == '__main__':
 
 # https://docs.python-telegram-bot.org/en/stable/telegram.bot.html#telegram.Bot.send_photo
 # https://qna.habr.com/q/331636
+# https://yandex.ru/blog/mapsapi/32690
