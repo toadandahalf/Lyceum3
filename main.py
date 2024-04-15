@@ -2,7 +2,7 @@ from telegram.ext import Application, MessageHandler, filters, CommandHandler, C
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 import requests
 
-# import pprint
+import pprint
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
@@ -64,12 +64,14 @@ async def get_name(update, context):
         "text": update.message.text,
         "lang": "ru_RU",
         "type": "biz",
-        # "ll": "55.75596, 37.61763",
-        # "spn": "10, 10"
+        "bbox": "54.331086, 34.372653~57.893077, 41.036901",
+        "results": "50"
     }
 
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
+
+    pprint.pprint(json_response)
 
     choosing_from_ten = ''
 
