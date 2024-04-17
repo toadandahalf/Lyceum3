@@ -1,8 +1,6 @@
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import ReplyKeyboardMarkup
 import requests
-
-import pprint
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
@@ -37,6 +35,7 @@ async def start(update, context):
 
 
 async def get_name_or_address(update, context):
+
     search_api_server = "https://search-maps.yandex.ru/v1/"
 
     search_params = {
@@ -50,8 +49,8 @@ async def get_name_or_address(update, context):
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
 
-    pprint.pprint(json_response)
-    print(json_response['features'][0]['properties'])
+    """Поиск по организациям или поиск адреса"""
+
     try:
         choosing_from_ten = ''
 
@@ -94,7 +93,7 @@ async def get_name_or_address(update, context):
                                               one_time_keyboard=True)
 
         await update.message.reply_html(
-            'Выберите подходящее место и отправьте число от 1 до 10,'
+            'Выберите подходящее место и отправьте число его номер,'
             ' чтобы получить точную информацию об этом месте',
             reply_markup=select_kb_reply
         )
@@ -102,23 +101,30 @@ async def get_name_or_address(update, context):
         return 3
 
 
-async def get_name_information(update, context):
+async def get_address_information(update, context):
+
+    """Функция вывода информации об адресе"""
+
     select = str(int(update.message.text) - 1)
     organization = context.user_data['list_of_some'][select]
 
     context.user_data['list_of_some'] = {}
 
-    org_name = organization["properties"]["CompanyMetaData"]["name"]
-    org_address = organization["properties"]["CompanyMetaData"]["address"]
+    kind = organization["properties"]["GeocoderMetaData"]["kind"]
+    street = organization["properties"]["name"]
+    city = organization["properties"]["description"]
     org_coordinates = organization["geometry"]["coordinates"]
+
     org_map = f'https://static-maps.yandex.ru/1.x/?ll=' \
               f'{str(organization["geometry"]["coordinates"][0])},{str(organization["geometry"]["coordinates"][1])}' \
               f'&spn=0.005,0.005&l=map&pt={str(organization["geometry"]["coordinates"][0])},' \
-              f'{str(organization["geometry"]["coordinates"][1])},pm2rdl'
+              f'{str(organization["geometry"]["coordinates"][1])},pm2bll'
+
+    """Создание сообщения о выбранном адресе"""
 
     answer = f'''
-    {org_name}
-    Адрес: {org_address}
+    Тип: {kinds[kind]}
+    Адрес: {city}, {street}
     Точные координаты: {str(org_coordinates).rstrip("]").lstrip("[")}'''
 
     await update.message.reply_photo(org_map, caption=answer)
@@ -126,26 +132,43 @@ async def get_name_information(update, context):
     return ConversationHandler.END
 
 
-async def get_address_information(update, context):
+async def get_name_information(update, context):
+
+    """Функция вывода информации об организации"""
+
     select = str(int(update.message.text) - 1)
     organization = context.user_data['list_of_some'][select]
 
     context.user_data['list_of_some'] = {}
 
-    org_name = organization["properties"]["CompanyMetaData"]["name"]
-    org_address = organization["properties"]["CompanyMetaData"]["address"]
-    org_coordinates = organization["geometry"]["coordinates"]
-    org_map = f'https://static-maps.yandex.ru/1.x/?ll=' \
+    url = '---'
+
+    name = organization["properties"]["CompanyMetaData"]["name"]
+    address = organization["properties"]["CompanyMetaData"]["address"]
+    coordinates = organization["geometry"]["coordinates"]
+    phone = organization["properties"]["CompanyMetaData"]["Phones"][0]["formatted"]
+    hours = organization["properties"]["CompanyMetaData"]["Hours"]["text"]
+    map_map = f'https://static-maps.yandex.ru/1.x/?ll=' \
               f'{str(organization["geometry"]["coordinates"][0])},{str(organization["geometry"]["coordinates"][1])}' \
               f'&spn=0.005,0.005&l=map&pt={str(organization["geometry"]["coordinates"][0])},' \
               f'{str(organization["geometry"]["coordinates"][1])},pm2rdl'
 
-    answer = f'''
-    {org_name}
-    Адрес: {org_address}
-    Точные координаты: {str(org_coordinates).rstrip("]").lstrip("[")}'''
+    try:
+        url = organization["properties"]["CompanyMetaData"]["url"]
+    except KeyError:
+        pass
 
-    await update.message.reply_photo(org_map, caption=answer)
+    """Создание сообщения о выбранной организации"""
+
+    answer = f'''
+    Название: {name}
+    Адрес: {address}
+    Точные координаты: {str(coordinates).rstrip("]").lstrip("[")}
+    URL: {url}
+    Телефон: {phone}
+    Часы работы: {hours}'''
+
+    await update.message.reply_photo(map_map, caption=answer)
 
     return ConversationHandler.END
 
@@ -177,7 +200,7 @@ async def stop(update, context):
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
-    with_name = ConversationHandler(
+    the_one_who_controls = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
 
         states={
@@ -188,7 +211,7 @@ def main():
         fallbacks=[CommandHandler('stop', stop)]
     )
 
-    application.add_handler(with_name)
+    application.add_handler(the_one_who_controls)
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -199,7 +222,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# https://docs.python-telegram-bot.org/en/stable/telegram.bot.html#telegram.Bot.send_photo
-# https://qna.habr.com/q/331636
-# https://yandex.ru/blog/mapsapi/32690
