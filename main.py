@@ -1,11 +1,13 @@
+import pprint
+
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, KeyboardButton
 import requests
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
 apikey = "dda3ddba-c9ea-4ead-9010-f43fbc15c6e3"
-kinds = {'house': 'дом', 'street': 'улица', 'metro': 'станция метро',
-         'district': 'район города', 'locality': 'населенный пункт'}
+
+default_city = "Москва"
 
 
 async def start(update, context):
@@ -35,14 +37,12 @@ async def start(update, context):
 
 
 async def get_name_or_address(update, context):
-
     search_api_server = "https://search-maps.yandex.ru/v1/"
 
     search_params = {
         "apikey": apikey,
         "text": update.message.text,
         "lang": "ru_RU",
-        "bbox": "54.331086, 34.372653~57.893077, 41.036901",
         "results": "50"
     }
 
@@ -68,7 +68,7 @@ async def get_name_or_address(update, context):
                                               one_time_keyboard=True)
 
         await update.message.reply_html(
-            'Выберите подходящую организацию и отправьте число от 1 до 10,'
+            'Выберите подходящее место и отправьте число его номер,'
             ' чтобы получить точную информацию об этом месте',
             reply_markup=select_kb_reply
         )
@@ -83,9 +83,9 @@ async def get_name_or_address(update, context):
             context.user_data['list_of_some'][str(i)] = json_response["features"][i]
 
             choosing_from_ten += f'{i + 1}:\n' \
-                                 f'    Тип: {kinds[context.user_data["list_of_some"][str(i)]["properties"]["GeocoderMetaData"]["kind"]]}\n' \
+                                 f'    Тип: {context.user_data["list_of_some"][str(i)]["properties"]["GeocoderMetaData"]["kind"]}\n' \
                                  f'    Адрес: {context.user_data["list_of_some"][str(i)]["properties"]["name"]}, ' \
-                                 f'{context.user_data["list_of_some"][str(i)]["properties"]["description"]}\n'
+                                 f'{context.user_data["list_of_some"][str(i)]["properties"]["GeocoderMetaData"]["text"]}\n'
 
         await update.message.reply_html(choosing_from_ten)
 
@@ -102,7 +102,6 @@ async def get_name_or_address(update, context):
 
 
 async def get_address_information(update, context):
-
     """Функция вывода информации об адресе"""
 
     select = str(int(update.message.text) - 1)
@@ -123,7 +122,7 @@ async def get_address_information(update, context):
     """Создание сообщения о выбранном адресе"""
 
     answer = f'''
-    Тип: {kinds[kind]}
+    Тип: {kind}
     Адрес: {city}, {street}
     Точные координаты: {str(org_coordinates).rstrip("]").lstrip("[")}'''
 
@@ -133,7 +132,6 @@ async def get_address_information(update, context):
 
 
 async def get_name_information(update, context):
-
     """Функция вывода информации об организации"""
 
     select = str(int(update.message.text) - 1)
@@ -192,8 +190,30 @@ async def help_command(update, context):
     )
 
 
+async def geolocation(update, context):
+    search_api_server = "https://search-maps.yandex.ru/v1/"
+
+    search_params = {
+        "apikey": apikey,
+        "text": f"{update.message.location.latitude},{update.message.location.longitude}",
+        "lang": "ru_RU",
+        "results": "50"
+    }
+
+    response = requests.get(search_api_server, params=search_params)
+    json_response = response.json()
+
+    pprint.pprint(json_response)
+
+    context.user_data["default_city"] = json_response["features"][0]["properties"]["GeocoderMetaData"]["text"].split(', ')[1]
+
+    print(context.user_data["default_city"])
+
+    await update.message.reply_text('Геолокация обновлена')
+
+
 async def stop(update, context):
-    await update.message.reply_text("Диалог остановлен.")
+    await update.message.reply_text("Диалог остановлен")
     return ConversationHandler.END
 
 
@@ -216,6 +236,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("stop", stop))
+    application.add_handler(MessageHandler(filters.LOCATION, geolocation))
 
     application.run_polling()
 
