@@ -1,7 +1,7 @@
 import pprint
 
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
-from telegram import ReplyKeyboardMarkup, KeyboardButton
+from telegram import ReplyKeyboardMarkup
 import requests
 
 BOT_TOKEN = '7166801459:AAFqB5svbsnPg2ASubf11ZKJr-SFip4J5yw'
@@ -49,18 +49,31 @@ async def get_name_or_address(update, context):
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
 
+    try:
+        city = context.user_data['default_city']
+
+    except KeyError:
+        city = default_city
+
     """Поиск по организациям или поиск адреса"""
 
     try:
+
         choosing_from_ten = ''
 
-        for i in range(len(json_response['features'])):
-            context.user_data['list_of_some'][str(i)] = json_response["features"][i]
+        count = 0
 
-            choosing_from_ten += f'{i + 1}:\n' \
-                                 f'    Название: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["name"]}\n' \
-                                 f'    Адрес: {context.user_data["list_of_some"][str(i)]["properties"]["CompanyMetaData"]["address"]}\n' \
-                                 f'    \n'
+        for i in range(len(json_response['features'])):
+            if json_response["features"][i]["properties"]["CompanyMetaData"]["address"].split(', ')[0] == city:
+
+                context.user_data['list_of_some'][str(count + 1)] = json_response["features"][count]
+
+                choosing_from_ten += f'{count + 1}:\n' \
+                                     f'    Название: {context.user_data["list_of_some"][str(count + 1)]["properties"]["CompanyMetaData"]["name"]}\n' \
+                                     f'    Адрес: {context.user_data["list_of_some"][str(count + 1)]["properties"]["CompanyMetaData"]["address"]}\n' \
+                                     f'    \n'
+
+                count += 1
 
         await update.message.reply_html(choosing_from_ten)
 
@@ -79,13 +92,22 @@ async def get_name_or_address(update, context):
 
         choosing_from_ten = ''
 
-        for i in range(len(json_response['features'])):
-            context.user_data['list_of_some'][str(i)] = json_response["features"][i]
+        count = 0
 
-            choosing_from_ten += f'{i + 1}:\n' \
-                                 f'    Тип: {context.user_data["list_of_some"][str(i)]["properties"]["GeocoderMetaData"]["kind"]}\n' \
-                                 f'    Адрес: {context.user_data["list_of_some"][str(i)]["properties"]["name"]}, ' \
-                                 f'{context.user_data["list_of_some"][str(i)]["properties"]["GeocoderMetaData"]["text"]}\n'
+        for i in range(len(json_response['features'])):
+            if json_response["features"][i]["properties"]["GeocoderMetaData"]["text"].split(', ')[1] == city:
+
+                context.user_data['list_of_some'][str(count + 1)] = json_response["features"][count]
+
+                choosing_from_ten += f'{i + 1}:\n' \
+                                     f'    Тип: {context.user_data["list_of_some"][str(count + 1)]["properties"]["GeocoderMetaData"]["kind"]}\n' \
+                                     f'    Адрес: {context.user_data["list_of_some"][str(count + 1)]["properties"]["name"]}, ' \
+                                     f'{context.user_data["list_of_some"][str(count + 1)]["properties"]["GeocoderMetaData"]["text"]}\n'
+
+                count += 1
+
+            else:
+                pass
 
         await update.message.reply_html(choosing_from_ten)
 
@@ -104,7 +126,7 @@ async def get_name_or_address(update, context):
 async def get_address_information(update, context):
     """Функция вывода информации об адресе"""
 
-    select = str(int(update.message.text) - 1)
+    select = str(int(update.message.text))
     organization = context.user_data['list_of_some'][select]
 
     context.user_data['list_of_some'] = {}
@@ -134,7 +156,7 @@ async def get_address_information(update, context):
 async def get_name_information(update, context):
     """Функция вывода информации об организации"""
 
-    select = str(int(update.message.text) - 1)
+    select = str(int(update.message.text))
     organization = context.user_data['list_of_some'][select]
 
     context.user_data['list_of_some'] = {}
