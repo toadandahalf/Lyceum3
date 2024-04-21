@@ -149,7 +149,7 @@ async def get_address_information(update, context):
     Адрес: {city}, {street}
     Точные координаты: {str(org_coordinates).rstrip("]").lstrip("[")}'''
 
-    await update.message.reply_photo(org_map, caption=answer)
+    await update.message.reply_photo(org_map, caption=answer, reply_markup=ReplyKeyboardMarkup(['/start']))
 
     return ConversationHandler.END
 
@@ -189,7 +189,7 @@ async def get_name_information(update, context):
     Телефон: {phone}
     Часы работы: {hours}'''
 
-    await update.message.reply_photo(map_map, caption=answer)
+    await update.message.reply_photo(map_map, caption=answer, reply_markup=ReplyKeyboardMarkup(['/start']))
 
     return ConversationHandler.END
 
