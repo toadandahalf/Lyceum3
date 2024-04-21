@@ -1,4 +1,4 @@
-import pprint
+# import pprint
 
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup
@@ -7,9 +7,6 @@ import requests
 with open('apikey_and_token.txt', 'r') as apikey_and_token:
     APIKEY = apikey_and_token.readline().rstrip('\n')
     BOT_TOKEN = apikey_and_token.readline().rstrip('\n')
-
-print(APIKEY)
-print(BOT_TOKEN)
 
 default_city = "Москва"
 
@@ -229,11 +226,7 @@ async def geolocation(update, context):
     response = requests.get(search_api_server, params=search_params)
     json_response = response.json()
 
-    pprint.pprint(json_response)
-
     context.user_data["default_city"] = json_response["features"][0]["properties"]["GeocoderMetaData"]["text"].split(', ')[1]
-
-    print(context.user_data["default_city"])
 
     await update.message.reply_text('Геолокация обновлена')
 
